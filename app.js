@@ -17,7 +17,7 @@
         if (w.type === 'table') {
           w.rows.forEach(r => {
             if (r.date && r.task) {
-              tasks.push({ task: r.task, date: r.date, done: r.done, color: w.color, member: r.member });
+              tasks.push({ widgetId: w.id, task: r.task, date: r.date, done: r.done, color: w.color, member: r.member });
             }
           });
         }
@@ -417,7 +417,7 @@
         const isToday = today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === d;
         const dayTasks = tasks.filter(t => t.date === dateStr);
 
-        const chips = dayTasks.slice(0, 3).map(t => `<div class="cal-task-chip" style="border-left-color:${t.color};">${t.task || '—'}</div>`).join('');
+        const chips = dayTasks.slice(0, 3).map(t => `<div class="cal-task-chip" style="border-left-color:${t.color}; cursor:pointer;" onclick="openDetailOverlay(${t.widgetId})">${t.task || '—'}</div>`).join('');
         const more = dayTasks.length > 3 ? `<div style="font-size:11px;font-weight:bold;margin-top:4px">+${dayTasks.length - 3}</div>` : '';
 
         html += `<div class="cal-day${isToday ? ' today' : ''}"><div class="cal-day-num">${d}</div>${chips}${more}</div>`;

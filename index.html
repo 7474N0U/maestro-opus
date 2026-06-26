@@ -53,13 +53,13 @@
     </div>
 
     <div class="view hidden" id="view-calendar">
-      <div class="cal-header" style="justify-content: flex-start; gap: 2rem;">
+      <div class="cal-header" style="justify-content: space-between;">
+        <div class="cal-title" id="cal-title"></div>
         <div class="cal-controls" style="margin-top: 0;">
           <button class="cal-nav-btn" onclick="shiftMonth(-1)">Précédent</button>
           <button class="cal-nav-btn today-btn" onclick="goToToday()">Aujourd'hui</button>
           <button class="cal-nav-btn" onclick="shiftMonth(1)">Suivant</button>
         </div>
-        <div class="cal-title" id="cal-title"></div>
       </div>
       <div class="cal-grid" id="cal-grid"></div>
     </div>
