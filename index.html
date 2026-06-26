@@ -21,6 +21,21 @@
       <div class="nav-tab active" onclick="switchTab('dashboard',this)">Tableau de bord</div>
       <div class="nav-tab" onclick="switchTab('calendar',this)">Calendrier</div>
       <div class="nav-tab" onclick="switchTab('settings',this)">Paramètres</div>
+      <div style="flex-grow: 1;"></div>
+      <div style="position:relative; width:100%; border-top: 2px solid rgba(0,0,0,0.15);">
+        <div id="workspace-selector-btn" class="workspace-selector" onclick="toggleWorkspaceMenu()" style="padding: 1rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:bold; border-left: 6px solid transparent; transition: border-left 0.2s;">
+          <span id="current-workspace-name">Workspace 1</span>
+          <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </div>
+        <div class="workspace-menu" id="workspace-menu" style="display:none; position:absolute; bottom:100%; left:0; width:100%; background:white; border: 2px solid rgba(0,0,0,0.15); box-shadow: 4px 4px 0 rgba(0,0,0,0.15); border-radius:4px; max-height:300px; overflow-y:auto; z-index:1000;">
+          <div id="workspace-list"></div>
+          <div class="workspace-new" onclick="showNewWorkspaceInput()" style="padding: 1rem; border-top: 2px solid rgba(0,0,0,0.15); cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:14px; background:#f9f9f9;">+ Nouveau espace</div>
+          <div class="workspace-new-input" id="workspace-new-input" style="display:none; padding: 1rem; border-top: 2px solid rgba(0,0,0,0.15); background:#f9f9f9; display:none; gap: 8px;">
+             <input type="text" id="new-workspace-name" class="task-input" placeholder="Nom..." onkeydown="if(event.key==='Enter') createWorkspace()" style="width: 100%;">
+             <button class="add-btn primary" onclick="createWorkspace()" style="padding: 4px 8px;">OK</button>
+          </div>
+        </div>
+      </div>
     </nav>
 
     <div class="view" id="view-dashboard">
@@ -60,6 +75,19 @@
           </tbody>
         </table>
       </div>
+
+      <div class="cal-header" style="margin-top: 3rem;">
+        <div class="cal-title" style="font-family:'Annapurna SIL', serif; font-size:2.5rem; color:#000000;">Données de l'espace</div>
+      </div>
+      <div style="background:white; border:2px solid rgba(0,0,0,0.15); border-radius:4px; padding:2rem; max-width: 600px; box-shadow: -6px 6px 0px 0px rgba(0,0,0,0.12);">
+        <p style="margin-bottom: 1.5rem; color: rgba(0,0,0,0.6); font-family: 'Plus Jakarta Sans', sans-serif;">Ces actions affectent uniquement l'espace de travail sélectionné (<span id="settings-workspace-name" style="font-weight:bold;">Workspace 1</span>).</p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <button class="add-btn primary" onclick="exportData()">Exporter</button>
+          <button class="add-btn" onclick="document.getElementById('import-file').click()">Importer</button>
+          <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importData(event)">
+          <button class="add-btn" style="background:#fff; color:#FF1A1A; border-color:#FF1A1A;" onclick="openResetModal()">Réinitialiser</button>
+        </div>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -72,6 +100,10 @@
       <div class="login-title">Opus Login</div>
       <input type="text" id="login-user" class="login-input" placeholder="Username" />
       <input type="password" id="login-pass" class="login-input" placeholder="Password" />
+      <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+        <input type="checkbox" id="login-remember" style="margin-right: 8px;">
+        <label for="login-remember" style="color: rgba(0,0,0,0.6); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px;">Rester connecté</label>
+      </div>
       <div class="login-error" id="login-error">Invalid credentials</div>
       <button class="login-btn" onclick="performLogin()">LOGIN</button>
     </div>
@@ -104,6 +136,26 @@
       </div>
       <div class="overlay-body" style="max-height: 75vh;">
         <div id="detail-widget-preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="reset-overlay">
+    <div class="overlay-container" style="max-width: 500px;">
+      <div class="overlay-header" style="background: #ffffff; border-bottom: 2px solid rgba(0, 0, 0, 0.15); padding: 1rem 1.5rem;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; font-weight: 700; color: #FF1A1A;">ATTENTION : RÉINITIALISATION</span>
+      </div>
+      <div class="overlay-body">
+        <p style="margin-bottom: 1rem; font-family: 'Plus Jakarta Sans', sans-serif;">Vous êtes sur le point de supprimer toutes les données de cet espace de travail.</p>
+        <p style="margin-bottom: 1rem; font-family: 'Plus Jakarta Sans', sans-serif;">Une sauvegarde serveur sera effectuée, mais nous vous recommandons d'exporter manuellement vos données avant de confirmer.</p>
+        <button class="add-btn" style="margin-bottom: 1.5rem;" onclick="exportData()">Exporter maintenant</button>
+        
+        <p style="margin-bottom: 0.5rem; font-weight:bold; font-family: 'Plus Jakarta Sans', sans-serif;">Veuillez taper "oui je confirme" ci-dessous :</p>
+        <input type="text" id="reset-confirm-input" class="task-input" placeholder="oui je confirme" oninput="checkResetConfirmation(this.value)">
+      </div>
+      <div class="overlay-footer">
+        <button class="footer-btn cancel" onclick="closeResetModal()">Annuler</button>
+        <button class="footer-btn save" id="reset-confirm-btn" style="background:#ccc; cursor:not-allowed;" disabled onclick="validateReset()">Confirmer</button>
       </div>
     </div>
   </div>

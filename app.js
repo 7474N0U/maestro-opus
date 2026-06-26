@@ -2,6 +2,8 @@
     const COLORS = ['#FF1A1A', '#111111', '#FF7F00', '#00FF00', '#00FFFF', '#0000FF', '#4B0082', '#9400D3'];
     let widgets = [];
     let appMembers = [];
+    let workspaces = [];
+    let currentWorkspaceId = parseInt(localStorage.getItem('opus_workspace')) || 1;
     let calYear = new Date().getFullYear();
     let calMonth = new Date().getMonth();
     let widgetCounter = 0;
@@ -415,32 +417,12 @@
     }
 
     // backend api
-    let API_BASE = 'https://api.maestroai.company/api';
-
-    // determine api base dynamically
-    (async function determineApiBase() {
-      if (window.location.protocol !== 'file:') {
-        API_BASE = '/api';
-        console.log("Using relative API:", API_BASE);
-        return;
-      }
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1000);
-        const res = await fetch('http://localhost:3000/api/widgets', { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          API_BASE = 'http://localhost:3000/api';
-          console.log("Using local API:", API_BASE);
-        }
-      } catch (e) {
-        console.log("Local API not responding, using remote:", API_BASE);
-      }
-    })();
+    let API_BASE = '/api';
 
     async function performLogin() {
       const user = document.getElementById('login-user').value;
       const pass = document.getElementById('login-pass').value;
+      const remember = document.getElementById('login-remember').checked;
       const errEl = document.getElementById('login-error');
 
       try {
@@ -451,8 +433,14 @@
         });
         const data = await res.json();
         if (data.success) {
+          if (remember) {
+            localStorage.setItem('opus_user', user);
+          } else {
+            sessionStorage.setItem('opus_user', user);
+          }
           document.getElementById('login-overlay').style.display = 'none';
           loadFromServer();
+          startPolling();
         } else {
           errEl.style.display = 'block';
           errEl.textContent = 'Invalid credentials';
@@ -527,7 +515,8 @@
     async function loadFromServer() {
       try {
         await loadMembers();
-        const res = await fetch(API_BASE + '/widgets');
+        await loadWorkspaces();
+        const res = await fetch(API_BASE + '/workspaces/' + currentWorkspaceId + '/widgets');
         const data = await res.json();
         widgets = data || [];
         widgetCounter = widgets.reduce((max, w) => Math.max(max, w.id), 0);
@@ -543,7 +532,7 @@
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(async () => {
         try {
-          await fetch(API_BASE + '/widgets', {
+          await fetch(API_BASE + '/workspaces/' + currentWorkspaceId + '/widgets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(widgets)
@@ -553,3 +542,236 @@
         }
       }, 500);
     }
+
+    // Polling logic
+    let pollInterval = null;
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(pollFromServer, 5000);
+    }
+
+    async function pollFromServer() {
+      try {
+        const res = await fetch(API_BASE + '/workspaces/' + currentWorkspaceId + '/widgets');
+        const data = await res.json();
+        
+        const newDataString = JSON.stringify(data || []);
+        const oldDataString = JSON.stringify(widgets || []);
+        
+        if (newDataString !== oldDataString) {
+          const active = document.activeElement;
+          const isEditing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+          
+          if (!isEditing) {
+            widgets = data || [];
+            widgetCounter = widgets.reduce((max, w) => Math.max(max, w.id), 0);
+            renderWidgets();
+            renderCalendar();
+            
+            if (currentDetailWidget) {
+               const updatedWidget = widgets.find(w => w.id === currentDetailWidget.id);
+               if (updatedWidget) {
+                   currentDetailWidget = JSON.parse(JSON.stringify(updatedWidget));
+                   renderDetailPreview();
+               } else {
+                   closeDetailModal(false);
+               }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to poll data', e);
+      }
+    }
+
+    // workspaces logic
+    async function loadWorkspaces() {
+      try {
+        const res = await fetch(API_BASE + '/workspaces');
+        workspaces = await res.json();
+        if (workspaces.length > 0) {
+           if (!workspaces.find(w => w.id === currentWorkspaceId)) {
+             currentWorkspaceId = workspaces[0].id;
+             localStorage.setItem('opus_workspace', currentWorkspaceId);
+           }
+        }
+        renderWorkspaceMenu();
+      } catch (e) { console.error('Failed to load workspaces', e); }
+    }
+
+    function toggleWorkspaceMenu() {
+      const menu = document.getElementById('workspace-menu');
+      menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function renderWorkspaceMenu() {
+      const current = workspaces.find(w => w.id === currentWorkspaceId);
+      if (current) {
+        document.getElementById('current-workspace-name').textContent = current.name;
+        const sName = document.getElementById('settings-workspace-name');
+        if(sName) sName.textContent = current.name;
+        const selectorBtn = document.getElementById('workspace-selector-btn');
+        if (selectorBtn) selectorBtn.style.borderLeftColor = current.color || '#111111';
+      }
+      
+      const list = document.getElementById('workspace-list');
+      list.innerHTML = workspaces.map(w => `
+        <div style="padding: 0.5rem 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; border-left: 4px solid ${w.color || '#111111'}; background: white;">
+          <span style="cursor:pointer; flex-grow:1; font-family:'IBM Plex Mono', monospace; font-size:14px; ${w.id === currentWorkspaceId ? 'font-weight:bold;' : ''} padding-left: 8px;" onclick="switchWorkspace(${w.id})">${w.name}</span>
+          <div style="display:flex; align-items:center; gap: 8px; position: relative;">
+            <i class="ti ti-pencil" style="cursor:pointer; color:#888;" onclick="event.stopPropagation(); editWorkspaceName(${w.id}, '${w.color}', this)"></i>
+          </div>
+        </div>
+      `).join('');
+    }
+
+
+
+    async function switchWorkspace(id) {
+      currentWorkspaceId = id;
+      localStorage.setItem('opus_workspace', id);
+      document.getElementById('workspace-menu').style.display = 'none';
+      await loadFromServer();
+    }
+
+    function editWorkspaceName(id, color, iconEl) {
+      const container = iconEl.parentElement.parentElement;
+      const span = container.querySelector('span');
+      const oldName = span.textContent;
+      
+      container.innerHTML = `
+        <input type="color" value="${color || '#111111'}" id="edit-color-${id}" style="width: 28px; height: 28px; padding: 0; border: none; cursor: pointer; background: transparent; margin-right: 8px;" onclick="event.stopPropagation();">
+        <input type="text" class="task-input" id="edit-name-${id}" value="${oldName}" style="flex-grow:1;" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter') { event.stopPropagation(); renameWorkspace(${id}, document.getElementById('edit-name-${id}').value, document.getElementById('edit-color-${id}').value) }">
+        <button class="add-btn primary" style="padding: 2px 8px; margin-left: 8px;" onclick="event.stopPropagation(); renameWorkspace(${id}, document.getElementById('edit-name-${id}').value, document.getElementById('edit-color-${id}').value)">OK</button>
+      `;
+    }
+
+    async function renameWorkspace(id, newName, newColor) {
+      if(!newName.trim()) return loadWorkspaces();
+      try {
+        await fetch(API_BASE + '/workspaces/' + id, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ name: newName.trim(), color: newColor })
+        });
+        await loadWorkspaces();
+      } catch (e) { console.error(e); }
+    }
+
+    function showNewWorkspaceInput() {
+      const inputDiv = document.getElementById('workspace-new-input');
+      inputDiv.style.display = inputDiv.style.display === 'none' ? 'flex' : 'none';
+      if (inputDiv.style.display === 'flex') {
+        document.getElementById('new-workspace-name').focus();
+      }
+    }
+
+    async function createWorkspace() {
+      const input = document.getElementById('new-workspace-name');
+      const name = input.value.trim();
+      if(!name) return;
+      const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+      
+      try {
+        const res = await fetch(API_BASE + '/workspaces', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ name: name, color: randomColor })
+        });
+        const data = await res.json();
+        if(data.success) {
+           input.value = '';
+           document.getElementById('workspace-new-input').style.display = 'none';
+           await switchWorkspace(data.id);
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    // Data Management
+    function exportData() {
+      const dataStr = JSON.stringify(widgets, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `opus_workspace_${currentWorkspaceId}_backup.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedWidgets = JSON.parse(e.target.result);
+          if (Array.isArray(importedWidgets)) {
+            widgets = importedWidgets;
+            widgetCounter = widgets.reduce((max, w) => Math.max(max, w.id), 0);
+            renderWidgets();
+            renderCalendar();
+            saveToServer();
+            alert("Import réussi !");
+          } else {
+            alert("Le fichier JSON n'a pas le bon format.");
+          }
+        } catch (err) {
+          alert("Erreur lors de la lecture du fichier JSON.");
+        }
+        event.target.value = ''; // reset input
+      };
+      reader.readAsText(file);
+    }
+
+    function openResetModal() {
+      document.getElementById('reset-confirm-input').value = '';
+      document.getElementById('reset-confirm-btn').disabled = true;
+      document.getElementById('reset-confirm-btn').style.background = '#ccc';
+      document.getElementById('reset-confirm-btn').style.cursor = 'not-allowed';
+      document.getElementById('reset-overlay').classList.add('open');
+    }
+
+    function closeResetModal() {
+      document.getElementById('reset-overlay').classList.remove('open');
+    }
+
+    function checkResetConfirmation(val) {
+      const btn = document.getElementById('reset-confirm-btn');
+      if (val === "oui je confirme") {
+        btn.disabled = false;
+        btn.style.background = '#FF1A1A';
+        btn.style.color = '#fff';
+        btn.style.cursor = 'pointer';
+      } else {
+        btn.disabled = true;
+        btn.style.background = '#ccc';
+        btn.style.cursor = 'not-allowed';
+      }
+    }
+
+    async function validateReset() {
+      try {
+        const res = await fetch(API_BASE + '/workspaces/' + currentWorkspaceId + '/reset', { method: 'POST' });
+        const data = await res.json();
+        if(data.success) {
+           widgets = [];
+           renderWidgets();
+           renderCalendar();
+           closeResetModal();
+           alert("Espace de travail réinitialisé.");
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    // check session on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const storedUser = localStorage.getItem('opus_user') || sessionStorage.getItem('opus_user');
+      if (storedUser) {
+        document.getElementById('login-overlay').style.display = 'none';
+        loadFromServer();
+        startPolling();
+      }
+    });

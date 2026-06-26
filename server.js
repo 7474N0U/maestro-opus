@@ -3,6 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,19 +17,32 @@ const dbPath = path.join(__dirname, 'database.sqlite');
 
 // create credentials.json if missing
 if (!fs.existsSync(credsPath)) {
-  fs.writeFileSync(credsPath, JSON.stringify([{ username: 'admin', password: 'password' }], null, 2), 'utf8');
+  const hash = bcrypt.hashSync('password', 10);
+  fs.writeFileSync(credsPath, JSON.stringify([{ username: 'admin', password: hash }], null, 2), 'utf8');
 }
 
 const db = new sqlite3.Database(dbPath); // creates db if missing
 
 // initialize db
 db.serialize(() => {
-  db.run("CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY, widgets TEXT)");
+  db.run("CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY, name TEXT DEFAULT 'Workspace 1', color TEXT DEFAULT '#111111', widgets TEXT)");
+  
+  // migrate existing table
+  db.all("PRAGMA table_info(state)", (err, rows) => {
+    if (rows) {
+      if (!rows.find(r => r.name === 'name')) {
+        db.run("ALTER TABLE state ADD COLUMN name TEXT DEFAULT 'Workspace 1'");
+      }
+      if (!rows.find(r => r.name === 'color')) {
+        db.run("ALTER TABLE state ADD COLUMN color TEXT DEFAULT '#111111'");
+      }
+    }
+  });
   
   // seed initial data if state is empty
   db.get("SELECT count(*) as count FROM state", (err, row) => {
     if (row && row.count === 0) {
-      const stmt = db.prepare("INSERT INTO state (id, widgets) VALUES (1, ?)");
+      const stmt = db.prepare("INSERT INTO state (id, name, color, widgets) VALUES (1, 'Workspace 1', '#111111', ?)");
       stmt.run(JSON.stringify([]));
       stmt.finalize();
     }
@@ -51,28 +65,83 @@ function saveCredentials(users) {
   fs.writeFileSync(credsPath, JSON.stringify(users, null, 2), 'utf8');
 }
 
+// migrate passwords on startup
+(function migratePasswords() {
+  const users = readCredentials();
+  let modified = false;
+  users.forEach(u => {
+    if (!u.password.startsWith('$2b$') && !u.password.startsWith('$2a$')) {
+      u.password = bcrypt.hashSync(u.password, 10);
+      modified = true;
+    }
+  });
+  if (modified) {
+    saveCredentials(users);
+  }
+})();
+
 // login api
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const users = readCredentials();
 
-  if (readCredentials().length === 0) return res.status(400).json({ success: false, message: 'No users found, please create one first' });
+  if (users.length === 0) return res.status(400).json({ success: false, message: 'No users found, please create one first' });
 
-  const userMatch = users.find(u => u.username === username && u.password === password);
-  if (userMatch) {
+  const userMatch = users.find(u => u.username === username);
+  if (userMatch && bcrypt.compareSync(password, userMatch.password)) {
     res.json({ success: true });
   } else {
     res.status(401).json({ success: false, message: 'invalid credentials' });
   }
 });
 
-// get widgets
-app.get('/api/widgets', (req, res) => {
-  db.get("SELECT widgets FROM state WHERE id = 1", (err, row) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
+// get workspaces
+app.get('/api/workspaces', (req, res) => {
+  db.all("SELECT id, name, color FROM state", (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// create workspace
+app.post('/api/workspaces', (req, res) => {
+  const name = req.body.name || "Nouveau espace";
+  const color = req.body.color || "#111111";
+  const stmt = db.prepare("INSERT INTO state (name, color, widgets) VALUES (?, ?, ?)");
+  stmt.run(name, color, JSON.stringify([]), function(err) {
+    if (err) return res.status(500).json({ success: false, error: err.message });
+    res.json({ success: true, id: this.lastID, name: name, color: color });
+  });
+  stmt.finalize();
+});
+
+// edit workspace
+app.put('/api/workspaces/:id', (req, res) => {
+  const id = req.params.id;
+  const name = req.body.name;
+  const color = req.body.color;
+  
+  if (!name && !color) return res.status(400).json({ error: "name or color is required" });
+  
+  let updates = [];
+  let params = [];
+  if (name) { updates.push("name = ?"); params.push(name); }
+  if (color) { updates.push("color = ?"); params.push(color); }
+  params.push(id);
+  
+  const stmt = db.prepare(`UPDATE state SET ${updates.join(', ')} WHERE id = ?`);
+  stmt.run(...params, function(err) {
+    if (err) return res.status(500).json({ success: false, error: err.message });
+    res.json({ success: true });
+  });
+  stmt.finalize();
+});
+
+// get widgets for a workspace
+app.get('/api/workspaces/:id/widgets', (req, res) => {
+  const id = req.params.id;
+  db.get("SELECT widgets FROM state WHERE id = ?", [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
     try {
       res.json(row && row.widgets ? JSON.parse(row.widgets) : []);
     } catch (e) {
@@ -81,28 +150,44 @@ app.get('/api/widgets', (req, res) => {
   });
 });
 
-// save widgets
-app.post('/api/widgets', (req, res) => {
+// save widgets for a workspace
+app.post('/api/workspaces/:id/widgets', (req, res) => {
+  const id = req.params.id;
   const widgets = req.body;
-  const stmt = db.prepare("UPDATE state SET widgets = ? WHERE id = 1");
-  stmt.run(JSON.stringify(widgets), function(err) {
-    if (err) {
-      res.status(500).json({ success: false, error: err.message });
-      return;
-    }
+  const stmt = db.prepare("UPDATE state SET widgets = ? WHERE id = ?");
+  stmt.run(JSON.stringify(widgets), id, function(err) {
+    if (err) return res.status(500).json({ success: false, error: err.message });
     if (this.changes === 0) {
-        db.run("INSERT INTO state (id, widgets) VALUES (1, ?)", JSON.stringify(widgets), err => {
-            if(err) {
-                res.status(500).json({ success: false, error: err.message });
-            } else {
-                res.json({ success: true });
-            }
-        });
+       db.run("INSERT INTO state (id, name, color, widgets) VALUES (?, 'Workspace', '#111111', ?)", [id, JSON.stringify(widgets)], err => {
+           if (err) res.status(500).json({ success: false, error: err.message });
+           else res.json({ success: true });
+       });
     } else {
         res.json({ success: true });
     }
   });
   stmt.finalize();
+});
+
+// reset workspace and backup
+app.post('/api/workspaces/:id/reset', (req, res) => {
+  const id = req.params.id;
+  db.get("SELECT widgets FROM state WHERE id = ?", [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Create backup
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(__dirname, `backup-workspace-${id}-${dateStr}.json`);
+    fs.writeFileSync(backupPath, row && row.widgets ? row.widgets : "[]", 'utf8');
+    
+    // Reset DB
+    const stmt = db.prepare("UPDATE state SET widgets = '[]' WHERE id = ?");
+    stmt.run(id, function(err) {
+      if (err) return res.status(500).json({ success: false, error: err.message });
+      res.json({ success: true });
+    });
+    stmt.finalize();
+  });
 });
 
 // get members (users)
@@ -123,7 +208,8 @@ app.post('/api/members', (req, res) => {
     return res.status(400).json({ error: "user already exists" });
   }
 
-  users.push({ username, password });
+  const hash = bcrypt.hashSync(password, 10);
+  users.push({ username, password: hash });
   saveCredentials(users);
   
   res.json({ success: true, username });
