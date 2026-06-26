@@ -1,0 +1,635 @@
+
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #FFF8E5;
+      color: #000000;
+      min-height: 100vh;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      width: 240px;
+      flex-shrink: 0;
+      border-right: 2px solid rgba(0, 0, 0, 0.15);
+      background: #ffffff;
+      padding: 2rem 0;
+    }
+
+    .nav-logo {
+      font-family: 'Annapurna SIL', serif;
+      font-size: 2rem;
+      font-weight: bold;
+      color: #FF1A1A;
+      padding: 0 2rem 1.5rem 2rem;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-tab {
+      font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.85rem;
+      padding: 1rem 2rem;
+      cursor: pointer;
+      color: rgba(0, 0, 0, 0.4);
+      border-left: 4px solid transparent;
+      user-select: none;
+      transition: color 0.15s ease, border-left-color 0.15s ease;
+    }
+
+    .nav-tab.active {
+      color: #FF1A1A;
+      font-weight: 700;
+      border-left-color: #FF1A1A;
+    }
+
+    .nav-tab:hover:not(.active) {
+      color: #FF1A1A;
+    }
+
+    .view {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 3rem;
+      padding-bottom: 140px;
+    }
+
+    .view.hidden {
+      display: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .widget-card {
+      border: 2px solid rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      background: #ffffff;
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      height: max-content;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .widget-card:hover {
+      box-shadow: -10px 10px 0px 0px rgba(0, 0, 0, 0.18);
+      transform: translateY(-2px);
+    }
+
+    .widget-card input,
+    .widget-card textarea,
+    .widget-card button,
+    .widget-card .widget-color-dot,
+    .widget-card .color-picker-pop {
+      cursor: default;
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 1rem 1.25rem;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+      background: #ffffff;
+    }
+
+    .widget-color-dot {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      cursor: pointer;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+    }
+
+    .widget-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #000000;
+    }
+
+    .widget-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .widget-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #000000;
+      font-size: 16px;
+      transition: color 0.15s ease;
+    }
+
+    .widget-btn:hover {
+      color: #FF1A1A;
+    }
+
+    .widget-body {
+      padding: 1.5rem;
+    }
+
+    .color-picker-pop {
+      position: absolute;
+      top: 50px;
+      left: 12px;
+      z-index: 105;
+      background: #ffffff;
+      border: 2px solid rgba(0, 0, 0, 0.15);
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      padding: 8px;
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 120px;
+    }
+
+    .color-picker-pop.open {
+      display: flex;
+    }
+
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+    }
+
+    .color-swatch:hover {
+      border: 2px solid #000000;
+    }
+
+    table.task-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.task-table th {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(0, 0, 0, 0.4);
+      font-weight: 700;
+      text-align: left;
+      padding: 8px;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+    }
+
+    table.task-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      vertical-align: middle;
+    }
+
+    .task-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      color: #000000;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      width: 100%;
+      transition: border-bottom 0.15s ease;
+    }
+
+    .task-input:focus {
+      border-bottom: 1px solid #FF1A1A;
+    }
+
+    .add-row-btn {
+      display: inline-block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #FF1A1A;
+      cursor: pointer;
+      padding: 8px 0;
+      margin-top: 12px;
+      border: none;
+      background: none;
+      font-weight: bold;
+    }
+
+    .add-row-btn:hover {
+      text-decoration: underline;
+    }
+
+    .task-checkbox {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #FF1A1A;
+    }
+
+    .text-widget-area {
+      width: 100%;
+      min-height: 120px;
+      font-size: 14px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #000000;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      line-height: 1.65;
+    }
+
+    .toolbar {
+      position: fixed;
+      bottom: 40px;
+      left: calc(240px + (100vw - 240px) / 2);
+      transform: translateX(-50%);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 1rem 2rem;
+      z-index: 10;
+    }
+
+    .add-btn {
+      background: white;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #FF1A1A;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .add-btn:hover {
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.25);
+    }
+
+    .add-btn.primary {
+      background: white;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #FF1A1A;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .add-btn.primary:hover {
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.4);
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 5rem 2rem;
+      color: rgba(0, 0, 0, 0.4);
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+    }
+
+    .empty-state i {
+      font-size: 48px;
+      color: #FF1A1A;
+      opacity: 0.8;
+    }
+
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+    }
+
+    .cal-title {
+      font-family: 'Annapurna SIL', serif;
+      font-size: 2.5rem;
+      font-weight: 400;
+      color: #000000;
+    }
+
+    .cal-controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      margin-top: 2.5rem;
+    }
+
+    .cal-nav-btn {
+      background: white;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #FF1A1A;
+      transition: box-shadow 0.15s ease;
+    }
+
+    .cal-nav-btn:hover {
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.25);
+    }
+
+    .cal-nav-btn.today-btn {
+      color: #111111;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      background: rgba(0, 0, 0, 0.15);
+      border: 2px solid rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.1);
+    }
+
+    .cal-day-name {
+      background: #ffffff;
+      padding: 14px 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(0, 0, 0, 0.4);
+      border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+    }
+
+    .cal-day {
+      background: #ffffff;
+      padding: 12px;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cal-day.other-month {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .cal-day.other-month .cal-day-num {
+      color: rgba(0, 0, 0, 0.25);
+    }
+
+    .cal-day-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 6px;
+    }
+
+    .cal-day.today .cal-day-num {
+      display: inline-block;
+      background: #FF1A1A;
+      color: #ffffff;
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+
+    .cal-task-chip {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 11px;
+      padding: 4px 6px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-left: 4px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      font-weight: 600;
+      border-radius: 2px;
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
+    }
+
+    .overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .overlay-container {
+      background: #FFF8E5;
+      border: 2px solid #000000;
+      box-shadow: -10px 10px 0px 0px rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      width: 600px;
+      max-width: 90%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: scale(0.95);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .overlay.open .overlay-container {
+      transform: scale(1);
+    }
+
+    .overlay-toolbar {
+      background: #ffffff;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .overlay-body {
+      padding: 2rem;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
+    .overlay-footer {
+      background: transparent;
+      border-top: 2px solid rgba(0, 0, 0, 0);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+    }
+
+    .footer-btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      padding: 0.5rem 1.5rem;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      background: white;
+      transition: box-shadow 0.15s ease;
+    }
+
+    .footer-btn.save {
+      background: #111111;
+      color: #ffffff;
+      border-color: #111111;
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.15);
+    }
+
+    .footer-btn.save:hover {
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.3);
+    }
+
+    .footer-btn.cancel {
+      color: #FF1A1A;
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.1);
+    }
+
+    .footer-btn.cancel:hover {
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.2);
+    }
+    
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .login-container {
+      background: #ffffff;
+      border: 2px solid #000000;
+      box-shadow: -10px 10px 0px 0px rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      padding: 3rem;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .login-title {
+      font-family: 'Annapurna SIL', serif;
+      font-size: 2rem;
+      color: #FF1A1A;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .login-input {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1rem;
+      padding: 0.75rem;
+      border: 2px solid rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .login-input:focus {
+      border-color: #FF1A1A;
+    }
+
+    .login-btn {
+      background: #111111;
+      color: #ffffff;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      box-shadow: -4px 4px 0px 0px rgba(0, 0, 0, 0.15);
+      transition: box-shadow 0.15s ease;
+    }
+
+    .login-btn:hover {
+      box-shadow: -6px 6px 0px 0px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-error {
+      color: #FF1A1A;
+      font-size: 0.85rem;
+      text-align: center;
+      display: none;
+    }
