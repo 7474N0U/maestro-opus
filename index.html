@@ -18,27 +18,32 @@
   <div class="app" id="app">
     <nav class="nav">
       <div class="nav-logo">Opus</div>
+      <div style="position:relative; width:100%; border-bottom: 2px solid rgba(0,0,0,0.15); margin-bottom: 1.5rem;">
+        <div id="workspace-selector-btn" class="workspace-selector" onclick="toggleWorkspaceMenu()" style="padding: 0.5rem 2rem 1rem 2rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:bold; border-left: 6px solid transparent; transition: border-left 0.2s;">
+          <span id="current-workspace-name">Workspace 1</span>
+          <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </div>
+        <div class="workspace-menu" id="workspace-menu" style="display:none; position:absolute; top:100%; left:0; width:100%; background:white; border: 2px solid rgba(0,0,0,0.15); box-shadow: 4px 4px 0 rgba(0,0,0,0.15); border-radius:4px; max-height:300px; overflow-y:auto; z-index:1000;">
+          <div id="workspace-list"></div>
+          <div class="workspace-new" onclick="openNewWorkspaceModal()" style="padding: 1rem; border-top: 2px solid rgba(0,0,0,0.15); cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:14px; background:#f9f9f9;">+ Nouveau espace</div>
+        </div>
+      </div>
       <div class="nav-tab active" onclick="switchTab('dashboard',this)">Tableau de bord</div>
       <div class="nav-tab" onclick="switchTab('calendar',this)">Calendrier</div>
       <div class="nav-tab" onclick="switchTab('settings',this)">Paramètres</div>
       <div style="flex-grow: 1;"></div>
-      <div style="position:relative; width:100%; border-top: 2px solid rgba(0,0,0,0.15);">
-        <div id="workspace-selector-btn" class="workspace-selector" onclick="toggleWorkspaceMenu()" style="padding: 1rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:bold; border-left: 6px solid transparent; transition: border-left 0.2s;">
-          <span id="current-workspace-name">Workspace 1</span>
-          <i class="ti ti-chevron-down" aria-hidden="true"></i>
-        </div>
-        <div class="workspace-menu" id="workspace-menu" style="display:none; position:absolute; bottom:100%; left:0; width:100%; background:white; border: 2px solid rgba(0,0,0,0.15); box-shadow: 4px 4px 0 rgba(0,0,0,0.15); border-radius:4px; max-height:300px; overflow-y:auto; z-index:1000;">
-          <div id="workspace-list"></div>
-          <div class="workspace-new" onclick="showNewWorkspaceInput()" style="padding: 1rem; border-top: 2px solid rgba(0,0,0,0.15); cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:14px; background:#f9f9f9;">+ Nouveau espace</div>
-          <div class="workspace-new-input" id="workspace-new-input" style="display:none; padding: 1rem; border-top: 2px solid rgba(0,0,0,0.15); background:#f9f9f9; display:none; gap: 8px;">
-             <input type="text" id="new-workspace-name" class="task-input" placeholder="Nom..." onkeydown="if(event.key==='Enter') createWorkspace()" style="width: 100%;">
-             <button class="add-btn primary" onclick="createWorkspace()" style="padding: 4px 8px;">OK</button>
-          </div>
-        </div>
-      </div>
     </nav>
 
     <div class="view" id="view-dashboard">
+      <div class="cal-header" style="margin-bottom: 2rem;">
+        <div class="cal-title" style="font-family:'Annapurna SIL', serif; font-size:2.5rem; color:#000000;">Tableau de bord</div>
+        <div>
+          <select id="dashboard-sort" class="task-input" style="padding: 8px; border: 2px solid rgba(0,0,0,0.15); border-radius: 4px; font-weight: bold; cursor: pointer;" onchange="renderWidgets()">
+            <option value="all">Tous</option>
+            <option value="me">Moi</option>
+          </select>
+        </div>
+      </div>
       <div class="grid" id="widget-grid">
         <div class="empty-state" id="empty-hint" style="grid-column:1/-1">
           <i class="ti ti-layout-cards" aria-hidden="true"></i>
@@ -48,15 +53,15 @@
     </div>
 
     <div class="view hidden" id="view-calendar">
-      <div class="cal-header">
+      <div class="cal-header" style="justify-content: flex-start; gap: 2rem;">
+        <div class="cal-controls" style="margin-top: 0;">
+          <button class="cal-nav-btn" onclick="shiftMonth(-1)">Précédent</button>
+          <button class="cal-nav-btn today-btn" onclick="goToToday()">Aujourd'hui</button>
+          <button class="cal-nav-btn" onclick="shiftMonth(1)">Suivant</button>
+        </div>
         <div class="cal-title" id="cal-title"></div>
       </div>
       <div class="cal-grid" id="cal-grid"></div>
-      <div class="cal-controls">
-        <button class="cal-nav-btn" onclick="shiftMonth(-1)">Précédent</button>
-        <button class="cal-nav-btn today-btn" onclick="goToToday()">Aujourd'hui</button>
-        <button class="cal-nav-btn" onclick="shiftMonth(1)">Suivant</button>
-      </div>
     </div>
 
     <div class="view hidden" id="view-settings">
@@ -156,6 +161,35 @@
       <div class="overlay-footer">
         <button class="footer-btn cancel" onclick="closeResetModal()">Annuler</button>
         <button class="footer-btn save" id="reset-confirm-btn" style="background:#ccc; cursor:not-allowed;" disabled onclick="validateReset()">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="new-workspace-overlay">
+    <div class="overlay-container" style="max-width: 400px;">
+      <div class="overlay-header" style="background: #ffffff; border-bottom: 2px solid rgba(0, 0, 0, 0.15); padding: 1rem 1.5rem;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; font-weight: 700;">NOUVEAU ESPACE</span>
+      </div>
+      <div class="overlay-body">
+        <p style="margin-bottom: 0.5rem; font-family: 'Plus Jakarta Sans', sans-serif;">Nom de l'espace :</p>
+        <input type="text" id="modal-new-workspace-name" class="task-input" placeholder="Nom..." onkeydown="if(event.key==='Enter') createWorkspace()">
+        
+        <p style="margin-top: 1.5rem; margin-bottom: 0.5rem; font-family: 'Plus Jakarta Sans', sans-serif;">Couleur :</p>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="modal-new-workspace-colors">
+          <div class="color-swatch" style="background: #FF1A1A; border: 2px solid #000;" onclick="selectNewWorkspaceColor(this, '#FF1A1A')"></div>
+          <div class="color-swatch" style="background: #111111;" onclick="selectNewWorkspaceColor(this, '#111111')"></div>
+          <div class="color-swatch" style="background: #FF7F00;" onclick="selectNewWorkspaceColor(this, '#FF7F00')"></div>
+          <div class="color-swatch" style="background: #00FF00;" onclick="selectNewWorkspaceColor(this, '#00FF00')"></div>
+          <div class="color-swatch" style="background: #00FFFF;" onclick="selectNewWorkspaceColor(this, '#00FFFF')"></div>
+          <div class="color-swatch" style="background: #0000FF;" onclick="selectNewWorkspaceColor(this, '#0000FF')"></div>
+          <div class="color-swatch" style="background: #4B0082;" onclick="selectNewWorkspaceColor(this, '#4B0082')"></div>
+          <div class="color-swatch" style="background: #9400D3;" onclick="selectNewWorkspaceColor(this, '#9400D3')"></div>
+        </div>
+        <input type="hidden" id="modal-new-workspace-color" value="#FF1A1A">
+      </div>
+      <div class="overlay-footer">
+        <button class="footer-btn cancel" onclick="closeNewWorkspaceModal()">Annuler</button>
+        <button class="footer-btn save" onclick="createWorkspace()">Créer</button>
       </div>
     </div>
   </div>

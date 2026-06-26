@@ -115,14 +115,29 @@
       const grid = document.getElementById('widget-grid');
       const hint = document.getElementById('empty-hint');
 
-      widgets.forEach(w => {
+      const sortEl = document.getElementById('dashboard-sort');
+      const sortVal = sortEl ? sortEl.value : 'all';
+      const currentUser = localStorage.getItem('opus_user') || sessionStorage.getItem('opus_user');
+
+      let displayWidgets = [...widgets];
+      if (sortVal === 'me' && currentUser) {
+        displayWidgets.sort((a, b) => {
+          const aHasMe = a.type === 'table' && a.rows && a.rows.some(r => r.member === currentUser);
+          const bHasMe = b.type === 'table' && b.rows && b.rows.some(r => r.member === currentUser);
+          if (aHasMe && !bHasMe) return -1;
+          if (!aHasMe && bHasMe) return 1;
+          return 0;
+        });
+      }
+
+      displayWidgets.forEach(w => {
         let el = document.querySelector(`[data-id="${w.id}"]`);
         if (!el) {
           el = document.createElement('div');
           el.className = 'widget-card';
           el.dataset.id = w.id;
-          grid.appendChild(el);
         }
+        grid.appendChild(el);
 
         el.innerHTML = buildWidgetHTML(w, 'grid');
 
@@ -141,6 +156,7 @@
         if (!widgets.find(w => w.id == el.dataset.id)) el.remove();
       });
 
+      grid.appendChild(hint);
       hint.style.display = widgets.length ? 'none' : 'flex';
     }
 
@@ -658,30 +674,43 @@
       } catch (e) { console.error(e); }
     }
 
-    function showNewWorkspaceInput() {
-      const inputDiv = document.getElementById('workspace-new-input');
-      inputDiv.style.display = inputDiv.style.display === 'none' ? 'flex' : 'none';
-      if (inputDiv.style.display === 'flex') {
-        document.getElementById('new-workspace-name').focus();
+    function openNewWorkspaceModal() {
+      document.getElementById('modal-new-workspace-name').value = '';
+      selectNewWorkspaceColor(document.querySelector('#modal-new-workspace-colors .color-swatch'), '#FF1A1A');
+      document.getElementById('new-workspace-overlay').classList.add('open');
+      document.getElementById('workspace-menu').style.display = 'none';
+      setTimeout(() => document.getElementById('modal-new-workspace-name').focus(), 100);
+    }
+
+    function closeNewWorkspaceModal() {
+      document.getElementById('new-workspace-overlay').classList.remove('open');
+    }
+
+    function selectNewWorkspaceColor(el, color) {
+      document.querySelectorAll('#modal-new-workspace-colors .color-swatch').forEach(sw => {
+        sw.style.border = '1px solid rgba(0,0,0,0.2)';
+      });
+      if (el) {
+        el.style.border = '2px solid #000';
       }
+      document.getElementById('modal-new-workspace-color').value = color;
     }
 
     async function createWorkspace() {
-      const input = document.getElementById('new-workspace-name');
+      const input = document.getElementById('modal-new-workspace-name');
       const name = input.value.trim();
       if(!name) return;
-      const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+      const selectedColor = document.getElementById('modal-new-workspace-color').value;
       
       try {
         const res = await fetch(API_BASE + '/workspaces', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ name: name, color: randomColor })
+          body: JSON.stringify({ name: name, color: selectedColor })
         });
         const data = await res.json();
         if(data.success) {
-           input.value = '';
-           document.getElementById('workspace-new-input').style.display = 'none';
+           closeNewWorkspaceModal();
            await switchWorkspace(data.id);
         }
       } catch (e) { console.error(e); }
